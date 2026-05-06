@@ -1,0 +1,452 @@
+/* ============================================================
+   RiderTribe – Global Design System
+   Primary: #FF6B00 (orange) | Background: dark theme
+   ============================================================ */
+
+/* ---- CSS Variables — Dark Theme (default) ---- */
+:root, [data-theme="dark"] {
+  --primary: #FF6B00;
+  --primary-light: #FF8C33;
+  --primary-dark: #CC5500;
+  --primary-glow: rgba(255, 107, 0, 0.3);
+  --primary-glow-strong: rgba(255, 107, 0, 0.5);
+
+  --bg-dark: #0A0A0A;
+  --bg-dark-rgb: 10, 10, 10;
+  --bg-surface: #141414;
+  --bg-card: #1A1A1A;
+  --bg-card-hover: #222222;
+  --bg-input: #1E1E1E;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #B0B0B0;
+  --text-muted: #707070;
+  --text-accent: #FF6B00;
+
+  --border-color: #2A2A2A;
+  --border-light: #333333;
+
+  --success: #22C55E;
+  --warning: #FACC15;
+  --danger: #EF4444;
+  --info: #3B82F6;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 50%;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 20px rgba(255,107,0,0.2);
+
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Outfit', 'Inter', sans-serif;
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  --sidebar-width: 260px;
+  --navbar-height: 64px;
+}
+
+/* ---- Light Theme ---- */
+[data-theme="light"] {
+  --bg-dark: #F0F2F5;
+  --bg-dark-rgb: 240, 242, 245;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F8F9FA;
+  --bg-input: #F0F2F5;
+
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --text-accent: #FF6B00;
+
+  --border-color: #E0E0E0;
+  --border-light: #CCCCCC;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --shadow-glow: 0 0 20px rgba(255,107,0,0.15);
+}
+
+/* ---- Reset & Base ---- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background var(--transition-normal), color var(--transition-normal);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover { color: var(--primary-light); }
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ---- Bootstrap Overrides ---- */
+.btn-primary {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: #fff !important;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-normal);
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: var(--primary-light) !important;
+  border-color: var(--primary-light) !important;
+  box-shadow: var(--shadow-glow) !important;
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all var(--transition-normal);
+}
+.btn-outline-primary:hover {
+  background: var(--primary) !important;
+  color: #fff !important;
+  box-shadow: var(--shadow-glow) !important;
+  transform: translateY(-1px);
+}
+
+.btn-dark {
+  background: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm);
+}
+.btn-dark:hover {
+  background: var(--bg-card-hover) !important;
+  border-color: var(--primary) !important;
+}
+
+.form-control, .form-select {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1rem;
+  transition: border-color var(--transition-fast);
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow) !important;
+}
+.form-control::placeholder {
+  color: var(--text-muted) !important;
+}
+
+.form-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  margin-bottom: 0.4rem;
+}
+
+.card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--transition-normal);
+}
+.card:hover {
+  border-color: var(--primary) !important;
+  box-shadow: var(--shadow-glow) !important;
+  transform: translateY(-2px);
+}
+
+.badge {
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 0.35em 0.7em;
+  border-radius: var(--radius-sm);
+}
+
+.modal-content {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  color: var(--text-primary) !important;
+}
+
+.dropdown-menu {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.dropdown-item {
+  color: var(--text-secondary) !important;
+  padding: 0.5rem 1rem;
+  transition: all var(--transition-fast);
+}
+.dropdown-item:hover {
+  background: rgba(255,107,0,0.1) !important;
+  color: var(--primary) !important;
+}
+
+/* ---- Utility Classes ---- */
+.text-accent { color: var(--primary) !important; }
+.bg-surface { background: var(--bg-surface) !important; }
+.bg-card { background: var(--bg-card) !important; }
+.glow-border { border: 1px solid var(--primary) !important; box-shadow: var(--shadow-glow); }
+.glass {
+  background: rgba(20,20,20,0.8) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ---- Animations ---- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px var(--primary-glow); }
+  50% { box-shadow: 0 0 20px var(--primary-glow-strong); }
+}
+
+.animate-fadeInUp { animation: fadeInUp 0.6s ease forwards; }
+.animate-fadeIn { animation: fadeIn 0.4s ease forwards; }
+.animate-slideInLeft { animation: slideInLeft 0.5s ease forwards; }
+
+/* ---- Page Layout ---- */
+.page-wrapper {
+  min-height: 100vh;
+  display: flex;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  padding-top: var(--navbar-height);
+  min-height: 100vh;
+}
+
+.page-container {
+  padding: 2rem;
+  max-width: 1400px;
+  animation: fadeInUp 0.5s ease;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+.page-header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
+.page-header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+/* ---- Stats Card ---- */
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  transition: all var(--transition-normal);
+}
+.stat-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
+}
+.stat-card .stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  background: rgba(255,107,0,0.1);
+  color: var(--primary);
+}
+.stat-card .stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+}
+.stat-card .stat-label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 992px) {
+  .main-content {
+    margin-left: 0;
+  }
+  :root {
+    --sidebar-width: 0px;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 1rem;
+  }
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+}
+
+/* ---- Dark Mode Visibility Fixes ---- */
+
+/* Ensure all text inside cards is readable */
+.widget-card, .stat-card, .detail-card, .create-form-card,
+.preview-card, .ride-album, .upload-panel, .calc-card, .result-card {
+  color: var(--text-primary);
+}
+
+/* Fix form labels in dark mode */
+label, .form-label {
+  color: var(--text-secondary) !important;
+}
+
+/* Fix Bootstrap text-muted in dark mode */
+.text-muted {
+  color: var(--text-muted) !important;
+}
+.text-secondary {
+  color: var(--text-secondary) !important;
+}
+
+/* Fix select dropdown options (dark bg shows white text in some browsers) */
+select.form-control, select.form-select {
+  color-scheme: dark;
+}
+[data-theme="light"] select.form-control,
+[data-theme="light"] select.form-select {
+  color-scheme: light;
+}
+
+/* Fix Bootstrap alert colors */
+.alert-danger {
+  background: rgba(239,68,68,0.1) !important;
+  border-color: rgba(239,68,68,0.3) !important;
+  color: #EF4444 !important;
+}
+.alert-warning {
+  background: rgba(250,204,21,0.1) !important;
+  border-color: rgba(250,204,21,0.3) !important;
+  color: #FACC15 !important;
+}
+
+/* Fix stat card value color in light mode */
+[data-theme="light"] .stat-card .stat-value {
+  color: var(--text-primary);
+}
+
+/* Fix weather card text contrast */
+.weather-temp { color: var(--primary); }
+.weather-info span { color: var(--text-secondary); }
+.weather-riding-tip { color: var(--text-secondary); }
+
+/* Fix sidebar in light mode */
+[data-theme="light"] .sidebar {
+  background: #FFFFFF;
+  border-right-color: #E0E0E0;
+}
+[data-theme="light"] .sidebar-link {
+  color: #555555;
+}
+[data-theme="light"] .sidebar-link:hover,
+[data-theme="light"] .sidebar-link.active {
+  background: rgba(255,107,0,0.08);
+  color: var(--primary);
+}
+
+/* Fix dropdown menu in light mode */
+[data-theme="light"] .dropdown-menu {
+  background: #FFFFFF !important;
+  border-color: #E0E0E0 !important;
+}
+[data-theme="light"] .dropdown-item {
+  color: #333333 !important;
+}
+[data-theme="light"] .dropdown-divider {
+  border-color: #E0E0E0 !important;
+}
+
+/* Fix search box in navbar light mode */
+[data-theme="light"] .search-box input {
+  background: #F0F2F5;
+  border-color: #E0E0E0;
+  color: #111111;
+}
+
+/* Fix badge colors for light mode */
+[data-theme="light"] .badge.bg-dark {
+  background: #E0E0E0 !important;
+  color: #333333 !important;
+}
+
+/* Fix chip buttons in light mode */
+[data-theme="light"] .chip {
+  background: #FFFFFF;
+  color: #555555;
+  border-color: #E0E0E0;
+}
+
+/* Fix spinner color */
+.spinner-border.text-accent {
+  color: var(--primary) !important;
+}
+
+/* Fix fw-600 utility */
+.fw-600 { font-weight: 600; }

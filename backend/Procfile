@@ -1,0 +1,1 @@
+web: gunicorn ridertribe.wsgi --log-file -
