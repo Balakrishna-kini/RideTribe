@@ -362,29 +362,6 @@ const LiveTracking = () => {
     console.log('🔄 Simulation reset!')
   }
 
-  // Poll backend for other riders' locations every 5s when tracking (real mode)
-  useEffect(() => {
-    if (!isTracking || !selectedRideId || useSimulation) return
-    const poll = async () => {
-      try {
-        const res = await api.get(`/tracking/${selectedRideId}/`)
-        const data = Array.isArray(res.data) ? res.data : res.data.results || []
-        setRiders(data.map((loc, i) => ({
-          id: loc.rider,
-          name: loc.riderName || loc.rider_name || `Rider ${i + 1}`,
-          lat: loc.latitude,
-          lng: loc.longitude,
-          speed: loc.speed || 0,
-          color: COLORS[i % COLORS.length],
-          timestamp: loc.timestamp,
-        })))
-      } catch {}
-    }
-    poll()
-    const interval = setInterval(poll, 5000)
-    return () => clearInterval(interval)
-  }, [isTracking, selectedRideId, useSimulation])
-
   // Push MY GPS location to backend every 5s (real mode)
   useEffect(() => {
     if (!isTracking || !selectedRideId || !myLocation || useSimulation) return
@@ -400,7 +377,7 @@ const LiveTracking = () => {
     push()
     const interval = setInterval(push, 5000)
     return () => clearInterval(interval)
-  }, [selectedRideId, useSimulation])
+  }, [isTracking, selectedRideId, useSimulation, myLocation])
 
   // Handle Arrival Detection (real mode)
   useEffect(() => {
@@ -431,60 +408,41 @@ const LiveTracking = () => {
     }
   }
 
-  // 1. Send own location to server (Real Mode)
+  // Fetch all riders' locations (including self) from backend (Real Mode)
   useEffect(() => {
-    if (!isTracking || useSimulation || !selectedRideId || !myLocation) return
-
-    const sendLocation = async () => {
-      try {
-        await api.post(`/tracking/${selectedRideId}/update/`, {
-          latitude: myLocation.lat,
-          longitude: myLocation.lng,
-          speed: myLocation.speed
-        })
-      } catch (err) {
-        // Silent fail for background tracking
-      }
+    if (!isTracking || useSimulation || !selectedRideId) {
+      setRiders([])
+      return
     }
-
-    const interval = setInterval(sendLocation, 5000) // Every 5s
-    sendLocation() 
-    return () => clearInterval(interval)
-  }, [isTracking, useSimulation, selectedRideId, myLocation])
-
-  // 2. Fetch other riders' locations (Real Mode)
-  useEffect(() => {
-    if (!isTracking || useSimulation || !selectedRideId) return
 
     const fetchRiders = async () => {
       try {
         const res = await api.get(`/tracking/${selectedRideId}/`)
-        // Filter out self and map to local rider format
-        const otherRiders = res.data
-          .filter(r => r.rider !== authService.getCurrentUser()?.id)
-          .map((r, i) => ({
-            id: r.rider,
-            name: r.rider_name || `Rider ${r.rider}`,
-            lat: r.latitude,
-            lng: r.longitude,
-            speed: r.speed,
-            color: COLORS[(i + 1) % COLORS.length],
-            isOrganizer: r.is_organizer // Use backend flag for Leader status
-          }))
+        // Map all riders (including self) to local rider format, no duplicates
+        const activeRiders = res.data.map((r, i) => ({
+          id: r.rider,
+          name: r.rider_name || `Rider ${r.rider}`,
+          lat: r.latitude,
+          lng: r.longitude,
+          speed: r.speed || 0,
+          color: COLORS[i % COLORS.length],
+          isOrganizer: r.is_organizer,
+          timestamp: r.timestamp
+        }))
         
-        setRiders(otherRiders)
+        setRiders(activeRiders)
         
         // Debug logs for tracking sync
-        if (otherRiders.length > 0) {
-          console.log(`📡 Syncing ${otherRiders.length} other riders for Ride #${selectedRideId}`)
-          console.log(`👤 Active Riders:`, otherRiders.map(o => `${o.name} (${o.isOrganizer ? 'Leader' : 'Member'})`).join(', '))
+        if (activeRiders.length > 0) {
+          console.log(`📡 Syncing ${activeRiders.length} riders for Ride #${selectedRideId}`)
+          console.log(`👤 Active Riders:`, activeRiders.map(o => `${o.name} (${o.isOrganizer ? 'Leader' : 'Member'})`).join(', '))
         }
       } catch (err) {
-        // Silent fail for background tracking
+        setRiders([])
       }
     }
 
-    const interval = setInterval(fetchRiders, 5000) // Every 5s
+    const interval = setInterval(fetchRiders, 5000)
     fetchRiders()
     return () => clearInterval(interval)
   }, [isTracking, useSimulation, selectedRideId])
@@ -577,13 +535,10 @@ const LiveTracking = () => {
   const currentRiders = useSimulation ? simulatedRiders : riders
   const currentMyLocation = useSimulation 
     ? (simulatedRiders.length > 0 ? simulatedRiders[0] : null)
-    : myLocation
+    : (riders.find(r => r.id === authService.getCurrentUser()?.id) || myLocation)
 
-  // Compute leader (first rider)
-  const allPositions = [
-    ...(currentMyLocation ? [{ lat: currentMyLocation.lat, lng: currentMyLocation.lng }] : []),
-    ...currentRiders.map(r => ({ lat: r.lat, lng: r.lng }))
-  ]
+  // Compute all positions
+  const allPositions = currentRiders.map(r => ({ lat: r.lat, lng: r.lng }))
 
   const centerLat = allPositions.length
     ? allPositions.reduce((s, p) => s + p.lat, 0) / allPositions.length : 12.97
@@ -591,23 +546,14 @@ const LiveTracking = () => {
     ? allPositions.reduce((s, p) => s + p.lng, 0) / allPositions.length : 77.59
 
   // Lag detection
-  const ridersWithLag = currentRiders.map(r => ({
-    ...r,
-    lagging: haversine(r.lat, r.lng, centerLat, centerLng) > LAG_THRESHOLD_KM,
-  }))
-
-  const meAsRider = currentMyLocation
-    ? {
-        id: 'me', name: useSimulation ? 'You (Organizer)' : 'You (GPS)',
-        lat: currentMyLocation.lat, lng: currentMyLocation.lng,
-        speed: currentMyLocation.speed, color: '#FF6B00', lagging: false,
-        isOrganizer: true
-      }
-    : null
-
-  const allRiders = meAsRider 
-    ? [meAsRider, ...ridersWithLag.filter(r => r.id !== 'me' && !r.isOrganizer)] 
-    : ridersWithLag
+  const allRiders = currentRiders.map(r => {
+    const isCurrentUser = r.id === authService.getCurrentUser()?.id
+    return {
+      ...r,
+      name: isCurrentUser ? (useSimulation ? 'You (Organizer)' : 'You (GPS)') : r.name,
+      lagging: haversine(r.lat, r.lng, centerLat, centerLng) > LAG_THRESHOLD_KM,
+    }
+  })
   
   // Real-time Distance Alert Logic
   useEffect(() => {
