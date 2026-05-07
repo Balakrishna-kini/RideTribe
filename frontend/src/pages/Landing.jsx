@@ -12,12 +12,6 @@ const features = [
   { icon: FiCamera, title: 'Ride Memories', desc: 'Capture and share photos from your adventures with the crew.' },
 ]
 
-const stats = [
-  { value: '50K+', label: 'Active Riders' },
-  { value: '12K+', label: 'Rides Completed' },
-  { value: '500+', label: 'Routes Mapped' },
-  { value: '100+', label: 'Cities' },
-]
 
 const Landing = () => {
   return (
@@ -35,10 +29,6 @@ const Landing = () => {
           <div className="row align-items-center min-vh-100">
             <div className="col-lg-7">
               <div className="hero-content animate-fadeInUp">
-                <span className="hero-badge">
-                  <span className="badge-dot"></span>
-                  Now in 100+ cities across India
-                </span>
                 <h1 className="hero-title">
                   Connect. Navigate.
                   <br />
@@ -54,14 +44,6 @@ const Landing = () => {
                   <Link to="/discover" className="btn btn-outline-primary btn-lg px-4">
                     Explore Rides
                   </Link>
-                </div>
-                <div className="hero-stats">
-                  {stats.map((stat, i) => (
-                    <div key={i} className="hero-stat">
-                      <div className="hero-stat-value">{stat.value}</div>
-                      <div className="hero-stat-label">{stat.label}</div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
@@ -205,25 +187,6 @@ const Landing = () => {
             linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
           background-size: 60px 60px;
         }
-        .hero-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: rgba(255,107,0,0.1);
-          border: 1px solid rgba(255,107,0,0.2);
-          border-radius: 50px;
-          padding: 6px 16px;
-          font-size: 0.8rem;
-          color: var(--primary);
-          margin-bottom: 1.5rem;
-        }
-        .badge-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--primary);
-          animation: pulse 2s infinite;
-        }
         .hero-title {
           font-size: 3.5rem;
           font-weight: 900;
@@ -244,22 +207,6 @@ const Landing = () => {
           flex-wrap: wrap;
           gap: 12px;
           margin-bottom: 3rem;
-        }
-        .hero-stats {
-          display: flex;
-          gap: 2.5rem;
-          padding-top: 2rem;
-          border-top: 1px solid var(--border-color);
-        }
-        .hero-stat-value {
-          font-family: var(--font-display);
-          font-size: 1.5rem;
-          font-weight: 800;
-          color: var(--primary);
-        }
-        .hero-stat-label {
-          font-size: 0.8rem;
-          color: var(--text-muted);
         }
         /* Hero Phone Mockup */
         .hero-visual {
@@ -466,8 +413,6 @@ const Landing = () => {
 
         @media (max-width: 768px) {
           .hero-title { font-size: 2.5rem; }
-          .hero-stats { gap: 1.2rem; flex-wrap: wrap; }
-          .hero-stat-value { font-size: 1.2rem; }
           .cta-card { padding: 2rem; }
           .section-title { font-size: 1.75rem; }
           .footer-links { justify-content: center; margin-top: 1rem; }

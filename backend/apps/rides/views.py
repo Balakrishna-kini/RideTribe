@@ -228,49 +228,57 @@ class DashboardSummaryView(APIView):
 
     def get(self, request):
         user = request.user
-        from django.db.models import Sum, Count
+        from django.db.models import Sum, Count, Q
         from django.utils import timezone
         from apps.notifications.models import Notification
+        import logging
+        logger = logging.getLogger(__name__)
         
         # 1. Stats
-        # Get rides where user is a member - use prefetch_related to optimize
-        joined_rides = Ride.objects.filter(members__user=user).select_related('organizer').prefetch_related('members')
-        total_rides = joined_rides.count()
+        # Total rides: where user is organizer OR a member
+        all_user_rides = Ride.objects.filter(
+            Q(organizer=user) | Q(members__user=user)
+        ).distinct()
         
-        # Sum distance of completed rides
-        total_distance = joined_rides.filter(status='completed').aggregate(Sum('distance'))['distance__sum'] or 0
+        total_rides = all_user_rides.count()
+        
+        # Total Distance: sum of distance for all user's rides (completed or upcoming)
+        total_distance = all_user_rides.aggregate(Sum('distance'))['distance__sum'] or 0
         
         # Buddies (distinct users in joined rides, excluding self)
+        # We look at all RideMember records for rides the user is part of
         buddies_count = RideMember.objects.filter(
-            ride__in=joined_rides
+            ride__in=all_user_rides
         ).exclude(user=user).values('user').distinct().count()
         
         # Monthly rides (completed in current month)
         now = timezone.now()
-        monthly_rides = joined_rides.filter(
+        monthly_rides = all_user_rides.filter(
             status='completed',
             date__month=now.month,
             date__year=now.year
         ).count()
         
         stats = {
-            'totalRides': total_rides or 0,
-            'totalDistance': round(total_distance or 0, 1),
-            'ridingBuddies': buddies_count or 0,
-            'monthlyRides': monthly_rides or 0
+            'totalRides': int(total_rides),
+            'totalDistance': round(float(total_distance), 1),
+            'ridingBuddies': int(buddies_count),
+            'monthlyRides': int(monthly_rides)
         }
         
-        # 2. Upcoming & Active Rides - optimize with select_related/prefetch_related
+        logger.info(f"Dashboard Stats for {user.username}: {stats}")
+        
+        # 2. Upcoming & Active Rides - include organized rides
         upcoming = Ride.objects.filter(
-            members__user=user,
+            Q(organizer=user) | Q(members__user=user),
             status='upcoming',
             date__gte=now.date()
-        ).select_related('organizer').prefetch_related('members').order_by('date', 'time')[:3]
+        ).distinct().select_related('organizer').prefetch_related('members').order_by('date', 'time')[:3]
         
         active = Ride.objects.filter(
-            members__user=user,
+            Q(organizer=user) | Q(members__user=user),
             status='active'
-        ).select_related('organizer').prefetch_related('members').order_by('-date')
+        ).distinct().select_related('organizer').prefetch_related('members').order_by('-date')
         
         upcoming_serializer = RideSerializer(upcoming, many=True)
         active_serializer = RideSerializer(active, many=True)
@@ -292,7 +300,7 @@ class DashboardSummaryView(APIView):
             
         # If not enough notifications, add recent ride joins/creations
         if len(recent_activity) < 5:
-            extra_rides = joined_rides.order_by('-created_at')[:5 - len(recent_activity)]
+            extra_rides = all_user_rides.order_by('-created_at')[:5 - len(recent_activity)]
             for r in extra_rides:
                 recent_activity.append({
                     'id': f"r_{r.id}",
