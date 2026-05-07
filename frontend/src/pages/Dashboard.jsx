@@ -29,21 +29,38 @@ const weatherLabel = (code) => {
 }
 
 const Dashboard = () => {
-  const [rides, setRides] = useState([])
+  const [summary, setSummary] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [weather, setWeather] = useState(null)
   const [weatherCity, setWeatherCity] = useState('Your Location')
   const [weatherLoading, setWeatherLoading] = useState(true)
+  const [retryCount, setRetryCount] = useState(0)
+
   const user = authService.getCurrentUser()
 
   useEffect(() => {
-    const fetchRides = async () => {
+    const fetchDashboardData = async () => {
+      const startTime = performance.now()
       try {
-        const data = await rideService.getRides()
-        setRides(Array.isArray(data) ? data : [])
-      } catch {}
+        const data = await rideService.getDashboardSummary()
+        setSummary(data)
+        setLoading(false)
+        setError(null)
+        console.log(`📊 Dashboard API loaded in ${Math.round(performance.now() - startTime)}ms`)
+      } catch (err) {
+        console.error('Dashboard fetch error:', err)
+        if (retryCount < 3) {
+          console.log(`🔄 Retrying dashboard fetch... (Attempt ${retryCount + 1})`)
+          setTimeout(() => setRetryCount(prev => prev + 1), 3000)
+        } else {
+          setError('Server is taking a while to wake up. Please refresh.')
+          setLoading(false)
+        }
+      }
     }
-    fetchRides()
-  }, [])
+    fetchDashboardData()
+  }, [retryCount])
 
   // Live weather via browser geolocation + Open-Meteo
   useEffect(() => {
@@ -60,7 +77,6 @@ const Dashboard = () => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords
-          // Reverse geocode city name using Nominatim
           try {
             const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
             const place = await r.json()
@@ -70,40 +86,27 @@ const Dashboard = () => {
             getWeather(latitude, longitude)
           }
         },
-        () => {
-          // Fallback: Bangalore
-          getWeather(12.9716, 77.5946, 'Bangalore, KA')
-        }
+        () => getWeather(12.9716, 77.5946, 'Bangalore, KA')
       )
     } else {
       getWeather(12.9716, 77.5946, 'Bangalore, KA')
     }
   }, [])
 
-  const upcomingRides = rides.filter(r => r.status === 'upcoming').slice(0, 3)
-  const activeRides = rides.filter(r => r.status === 'active')
-
-  const totalDistance = rides.reduce((sum, r) => sum + (r.distance || 0), 0)
-  const allMembers = new Set()
-  rides.forEach(r => (r.members || []).forEach(m => allMembers.add(m.userId || m.user_id || m.name)))
-  const now = new Date()
-  const thisMonthRides = rides.filter(r => {
-    const d = new Date(r.date)
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-  })
-
+  const statsData = summary?.stats || {}
+  
   const stats = [
-    { icon: FiNavigation, label: 'Total Rides', value: `${rides.length}`, color: '#FF6B00' },
-    { icon: FiMapPin, label: 'Distance', value: totalDistance > 0 ? `${totalDistance.toLocaleString()} km` : '—', color: '#3B82F6' },
-    { icon: FiUsers, label: 'Riding Buddies', value: `${allMembers.size}`, color: '#22C55E' },
-    { icon: FiTrendingUp, label: 'This Month', value: `${thisMonthRides.length} ride${thisMonthRides.length !== 1 ? 's' : ''}`, color: '#FACC15' },
+    { icon: FiNavigation, label: 'Total Rides', value: statsData.totalRides ?? '—', color: '#FF6B00' },
+    { icon: FiMapPin, label: 'Distance', value: statsData.totalDistance ? `${statsData.totalDistance.toLocaleString()} km` : '—', color: '#3B82F6' },
+    { icon: FiUsers, label: 'Riding Buddies', value: statsData.ridingBuddies ?? '—', color: '#22C55E' },
+    { icon: FiTrendingUp, label: 'This Month', value: statsData.monthlyRides ? `${statsData.monthlyRides} ride${statsData.monthlyRides !== 1 ? 's' : ''}` : '—', color: '#FACC15' },
   ]
 
-  // Real activity from rides data
-  const recentActivity = rides.slice(0, 4).map(r => ({
-    text: r.status === 'completed' ? `Completed: ${r.title}` : `Upcoming: ${r.title}`,
-    time: new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-    color: r.status === 'completed' ? '#22C55E' : r.status === 'active' ? '#FF6B00' : '#3B82F6',
+  const upcomingRides = summary?.upcomingRides || []
+  const recentActivity = (summary?.recentActivity || []).map(a => ({
+    text: a.message,
+    time: new Date(a.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+    color: a.type.includes('join') ? '#22C55E' : a.type.includes('alert') ? '#EF4444' : '#FF6B00',
   }))
 
   const wInfo = weather ? weatherLabel(weather.weathercode) : null
@@ -115,6 +118,13 @@ const Dashboard = () => {
         <p>Here's what's happening in your riding world</p>
       </div>
 
+      {error && (
+        <div className="alert alert-warning animate-fadeIn mb-4 d-flex align-items-center gap-3">
+          <div className="spinner-border spinner-border-sm text-warning" role="status"></div>
+          <div>{error}</div>
+        </div>
+      )}
+
       {/* Stats Row */}
       <div className="row g-3 mb-4">
         {stats.map((stat, i) => {
@@ -122,15 +132,19 @@ const Dashboard = () => {
           return (
             <div className="col-6 col-lg-3" key={i}>
               <div className="stat-card animate-fadeInUp" style={{ animationDelay: `${i * 0.1}s` }}>
-                <div className="d-flex align-items-center gap-3">
-                  <div className="stat-icon" style={{ background: `${stat.color}15`, color: stat.color }}>
-                    <Icon size={20} />
+                {loading ? (
+                  <div className="skeleton-stat shimmer"></div>
+                ) : (
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="stat-icon" style={{ background: `${stat.color}15`, color: stat.color }}>
+                      <Icon size={20} />
+                    </div>
+                    <div>
+                      <div className="stat-value">{stat.value}</div>
+                      <div className="stat-label">{stat.label}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="stat-value">{stat.value}</div>
-                    <div className="stat-label">{stat.label}</div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )
@@ -141,16 +155,16 @@ const Dashboard = () => {
         {/* Rides Section */}
         <div className="col-lg-8">
           {/* Active Rides */}
-          {activeRides.length > 0 && (
+          {summary?.activeRides?.length > 0 && (
             <div className="mb-4">
               <div className="d-flex justify-content-between align-items-center mb-3">
-                <h3 className="section-heading">🔴 Active Rides</h3>
+                <h3 className="section-heading text-primary">🔴 Active Rides</h3>
                 <Link to="/live-tracking" className="btn btn-outline-primary btn-sm">
                   Track <FiArrowRight size={13} />
                 </Link>
               </div>
               <div className="row g-3">
-                {activeRides.map(ride => (
+                {summary.activeRides.map(ride => (
                   <div className="col-md-6" key={ride.id}>
                     <RideCard ride={ride} />
                   </div>
@@ -165,7 +179,12 @@ const Dashboard = () => {
               <h3 className="section-heading">Upcoming Rides</h3>
               <Link to="/discover" className="btn btn-dark btn-sm">View All</Link>
             </div>
-            {upcomingRides.length > 0 ? (
+            {loading ? (
+              <div className="row g-3">
+                <div className="col-md-6"><RideCard loading={true} /></div>
+                <div className="col-md-6"><RideCard loading={true} /></div>
+              </div>
+            ) : upcomingRides.length > 0 ? (
               <div className="row g-3">
                 {upcomingRides.map(ride => (
                   <div className="col-md-6" key={ride.id}>
@@ -238,7 +257,13 @@ const Dashboard = () => {
           {/* Recent Activity */}
           <div className="widget-card">
             <h4 className="widget-title">Recent Activity</h4>
-            {recentActivity.length > 0 ? (
+            {loading ? (
+              <div className="skeleton-activity">
+                <div className="skeleton-line shimmer mb-2" style={{ width: '90%' }}></div>
+                <div className="skeleton-line shimmer mb-2" style={{ width: '70%' }}></div>
+                <div className="skeleton-line shimmer" style={{ width: '80%' }}></div>
+              </div>
+            ) : recentActivity.length > 0 ? (
               <div className="activity-list">
                 {recentActivity.map((a, i) => (
                   <div key={i} className="activity-item">
@@ -284,6 +309,20 @@ const Dashboard = () => {
         .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
         .activity-content { display: flex; flex-direction: column; font-size: 0.85rem; }
         .activity-time { color: var(--text-muted); font-size: 0.75rem; }
+        
+        /* Skeleton Shimmer */
+        .shimmer {
+          background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .skeleton-stat { height: 40px; width: 100%; border-radius: 8px; }
+        .skeleton-line { height: 12px; border-radius: 4px; background: var(--bg-input); }
+        .skeleton-activity { padding: 5px 0; }
       `}</style>
     </DashboardLayout>
   )

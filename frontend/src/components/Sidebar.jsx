@@ -67,31 +67,33 @@ const Sidebar = ({ isOpen, onClose }) => {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            z-index: 900;
+            z-index: 1100;
             overflow-y: auto;
-            transition: transform var(--transition-normal);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           }
           .sidebar-nav {
-            padding: 1rem 0.75rem;
+            padding: 1.25rem 0.75rem;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
           }
           .sidebar-link {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 0.65rem 1rem;
-            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
             color: var(--text-secondary);
-            font-size: 0.875rem;
+            font-size: 0.9rem;
             font-weight: 500;
             text-decoration: none;
             transition: all var(--transition-fast);
+            position: relative;
           }
           .sidebar-link:hover {
             background: rgba(255,107,0,0.08);
             color: var(--primary);
+            transform: translateX(4px);
           }
           .sidebar-link.active {
             background: rgba(255,107,0,0.12);
@@ -102,44 +104,59 @@ const Sidebar = ({ isOpen, onClose }) => {
             content: '';
             position: absolute;
             left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 3px;
-            height: 20px;
+            top: 20%;
+            height: 60%;
+            width: 4px;
             background: var(--primary);
             border-radius: 0 4px 4px 0;
           }
           .sidebar-divider {
             height: 1px;
             background: var(--border-color);
-            margin: 0.75rem 0.5rem;
+            margin: 1rem 0.5rem;
+            opacity: 0.5;
           }
           .sidebar-footer {
-            padding: 1rem;
+            padding: 1.25rem;
             border-top: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.05);
           }
           .sidebar-version {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
             text-align: center;
           }
           .sidebar-overlay {
-            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 1050;
+            animation: fadeIn 0.3s ease;
           }
 
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+
+          /* Mobile Sidebar Logic */
           @media (max-width: 992px) {
             .sidebar {
               transform: translateX(-100%);
+              box-shadow: none;
             }
             .sidebar.sidebar-open {
               transform: translateX(0);
+              box-shadow: 20px 0 50px rgba(0,0,0,0.5);
             }
+          }
+
+          @media (min-width: 993px) {
             .sidebar-overlay {
-              display: block;
-              position: fixed;
-              inset: 0;
-              background: rgba(0,0,0,0.6);
-              z-index: 899;
+              display: none !important;
             }
           }
         `}</style>

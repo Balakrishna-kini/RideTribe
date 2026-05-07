@@ -469,9 +469,16 @@ const LiveTracking = () => {
             lng: r.longitude,
             speed: r.speed,
             color: COLORS[(i + 1) % COLORS.length],
-            isOrganizer: false
+            isOrganizer: r.is_organizer // Use backend flag for Leader status
           }))
+        
         setRiders(otherRiders)
+        
+        // Debug logs for tracking sync
+        if (otherRiders.length > 0) {
+          console.log(`📡 Syncing ${otherRiders.length} other riders for Ride #${selectedRideId}`)
+          console.log(`👤 Active Riders:`, otherRiders.map(o => `${o.name} (${o.isOrganizer ? 'Leader' : 'Member'})`).join(', '))
+        }
       } catch (err) {
         // Silent fail for background tracking
       }

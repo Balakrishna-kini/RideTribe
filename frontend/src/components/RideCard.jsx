@@ -3,7 +3,42 @@ import { Link } from 'react-router-dom'
 import { FiMapPin, FiCalendar, FiUsers, FiArrowRight } from 'react-icons/fi'
 import { getRideImage } from '../utils/rideUtils'
 
-const RideCard = ({ ride }) => {
+const RideCard = ({ ride, loading }) => {
+  if (loading || !ride) {
+    return (
+      <div className="ride-card skeleton-card">
+        <div className="ride-card-image skeleton-shimmer"></div>
+        <div className="ride-card-body">
+          <div className="skeleton-line title"></div>
+          <div className="skeleton-line route"></div>
+          <div className="skeleton-line route"></div>
+          <div className="skeleton-line meta"></div>
+        </div>
+        <style>{`
+          .skeleton-card { border-color: var(--border-color); opacity: 0.7; }
+          .skeleton-shimmer {
+            background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+          }
+          .skeleton-line {
+            height: 12px; background: var(--bg-input); border-radius: 4px; margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+          }
+          .skeleton-line.title { height: 20px; width: 80%; }
+          .skeleton-line.route { width: 60%; }
+          .skeleton-line.meta { width: 90%; margin-top: 10px; }
+          @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
+      </div>
+    )
+  }
+
   const {
     id,
     title,

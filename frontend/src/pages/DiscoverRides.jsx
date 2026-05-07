@@ -72,7 +72,13 @@ const DiscoverRides = () => {
       {error && <div className="alert alert-danger">{error}</div>}
 
       {loading ? (
-        <div className="text-center py-5"><div className="spinner-border text-accent" /></div>
+        <div className="row g-3">
+          {[...Array(6)].map((_, i) => (
+            <div className="col-md-6 col-lg-4" key={i}>
+              <RideCard loading={true} />
+            </div>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-5">
           <FiCompass size={40} className="text-muted mb-2" />

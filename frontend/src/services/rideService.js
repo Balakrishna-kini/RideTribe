@@ -47,6 +47,11 @@ const rideService = {
     const res = await api.get(`/rides/distance/?${params.toString()}`)
     return res.data
   },
+
+  async getDashboardSummary() {
+    const res = await api.get('/rides/dashboard/summary/')
+    return res.data
+  },
 }
 
 export default rideService
