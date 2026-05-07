@@ -96,10 +96,10 @@ const Dashboard = () => {
   const statsData = summary?.stats || {}
   
   const stats = [
-    { icon: FiNavigation, label: 'Total Rides', value: statsData.totalRides ?? '—', color: '#FF6B00' },
-    { icon: FiMapPin, label: 'Distance', value: statsData.totalDistance ? `${statsData.totalDistance.toLocaleString()} km` : '—', color: '#3B82F6' },
-    { icon: FiUsers, label: 'Riding Buddies', value: statsData.ridingBuddies ?? '—', color: '#22C55E' },
-    { icon: FiTrendingUp, label: 'This Month', value: statsData.monthlyRides ? `${statsData.monthlyRides} ride${statsData.monthlyRides !== 1 ? 's' : ''}` : '—', color: '#FACC15' },
+    { icon: FiNavigation, label: 'Total Rides', value: statsData.totalRides ?? 0, color: '#FF6B00' },
+    { icon: FiMapPin, label: 'Distance', value: statsData.totalDistance ? `${statsData.totalDistance.toLocaleString()} km` : '0 km', color: '#3B82F6' },
+    { icon: FiUsers, label: 'Riding Buddies', value: statsData.ridingBuddies ?? 0, color: '#22C55E' },
+    { icon: FiTrendingUp, label: 'This Month', value: statsData.monthlyRides != null ? `${statsData.monthlyRides} ride${statsData.monthlyRides !== 1 ? 's' : ''}` : '0 rides', color: '#FACC15' },
   ]
 
   const upcomingRides = summary?.upcomingRides || []

@@ -254,10 +254,10 @@ class DashboardSummaryView(APIView):
         ).count()
         
         stats = {
-            'totalRides': total_rides,
-            'totalDistance': round(total_distance, 1),
-            'ridingBuddies': buddies_count,
-            'monthlyRides': monthly_rides
+            'totalRides': total_rides or 0,
+            'totalDistance': round(total_distance or 0, 1),
+            'ridingBuddies': buddies_count or 0,
+            'monthlyRides': monthly_rides or 0
         }
         
         # 2. Upcoming & Active Rides - optimize with select_related/prefetch_related

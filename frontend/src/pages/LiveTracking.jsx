@@ -417,7 +417,9 @@ const LiveTracking = () => {
 
     const fetchRiders = async () => {
       try {
+        console.log(`🔄 Polling for riders for Ride #${selectedRideId}`)
         const res = await api.get(`/tracking/${selectedRideId}/`)
+        console.log(`📡 Received response:`, res.data)
         // Map all riders (including self) to local rider format, no duplicates
         const activeRiders = res.data.map((r, i) => ({
           id: r.rider,
@@ -430,19 +432,17 @@ const LiveTracking = () => {
           timestamp: r.timestamp
         }))
         
-        setRiders(activeRiders)
+        console.log(`✅ Processed ${activeRiders.length} active riders for Ride #${selectedRideId}`)
+        console.log(`👤 Riders:`, activeRiders.map(o => `${o.name} (${o.isOrganizer ? 'Leader' : 'Member'})`).join(', '))
         
-        // Debug logs for tracking sync
-        if (activeRiders.length > 0) {
-          console.log(`📡 Syncing ${activeRiders.length} riders for Ride #${selectedRideId}`)
-          console.log(`👤 Active Riders:`, activeRiders.map(o => `${o.name} (${o.isOrganizer ? 'Leader' : 'Member'})`).join(', '))
-        }
+        setRiders(activeRiders)
       } catch (err) {
+        console.error('❌ Error fetching riders:', err)
         setRiders([])
       }
     }
 
-    const interval = setInterval(fetchRiders, 5000)
+    const interval = setInterval(fetchRiders, 3000)
     fetchRiders()
     return () => clearInterval(interval)
   }, [isTracking, useSimulation, selectedRideId])
