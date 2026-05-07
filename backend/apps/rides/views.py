@@ -219,3 +219,95 @@ class LeaveRideView(APIView):
             })
         except RideMember.DoesNotExist:
             return Response({'error': 'Not a member'}, status=status.HTTP_400_BAD_REQUEST)
+class DashboardSummaryView(APIView):
+    """
+    Combined dashboard data to reduce frontend requests and prevent waterfalls.
+    GET /api/rides/dashboard/summary/
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        from django.db.models import Sum, Count
+        from django.utils import timezone
+        from apps.notifications.models import Notification
+        
+        # 1. Stats
+        # Get rides where user is a member
+        joined_rides = Ride.objects.filter(members__user=user)
+        total_rides = joined_rides.count()
+        
+        # Sum distance of completed rides
+        total_distance = joined_rides.filter(status='completed').aggregate(Sum('distance'))['distance__sum'] or 0
+        
+        # Buddies (distinct users in joined rides, excluding self)
+        buddies_count = RideMember.objects.filter(
+            ride__in=joined_rides
+        ).exclude(user=user).values('user').distinct().count()
+        
+        # Monthly rides (completed in current month)
+        now = timezone.now()
+        monthly_rides = joined_rides.filter(
+            status='completed',
+            date__month=now.month,
+            date__year=now.year
+        ).count()
+        
+        stats = {
+            'totalRides': total_rides,
+            'totalDistance': round(total_distance, 1),
+            'ridingBuddies': buddies_count,
+            'monthlyRides': monthly_rides
+        }
+        
+        # 2. Upcoming & Active Rides
+        upcoming = Ride.objects.filter(
+            members__user=user,
+            status='upcoming',
+            date__gte=now.date()
+        ).order_by('date', 'time')[:3]
+        
+        active = Ride.objects.filter(
+            members__user=user,
+            status='active'
+        ).order_by('-date')
+        
+        upcoming_serializer = RideSerializer(upcoming, many=True)
+        active_serializer = RideSerializer(active, many=True)
+        
+        # 3. Recent Activity (Latest notifications or joins)
+        # We'll use a mix of notifications and recent joins for a richer experience
+        recent_activity = []
+        
+        # Get latest 5 notifications
+        notifs = Notification.objects.filter(user=user)[:5]
+        for n in notifs:
+            recent_activity.append({
+                'id': f"n_{n.id}",
+                'type': n.notification_type,
+                'message': n.message,
+                'time': n.created_at,
+                'ride_id': n.ride_id
+            })
+            
+        # If not enough notifications, add recent ride joins/creations
+        if len(recent_activity) < 5:
+            extra_rides = joined_rides.order_by('-created_at')[:5 - len(recent_activity)]
+            for r in extra_rides:
+                recent_activity.append({
+                    'id': f"r_{r.id}",
+                    'type': 'ride_created' if r.organizer == user else 'ride_joined',
+                    'message': f"You {'created' if r.organizer == user else 'joined'} {r.title}",
+                    'time': r.created_at,
+                    'ride_id': r.id
+                })
+        
+        # Sort by time
+        recent_activity.sort(key=lambda x: x['time'], reverse=True)
+        
+        return Response({
+            'stats': stats,
+            'upcomingRides': upcoming_serializer.data,
+            'activeRides': active_serializer.data,
+            'recentActivity': recent_activity[:5]
+        })

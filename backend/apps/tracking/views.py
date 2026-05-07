@@ -23,13 +23,18 @@ class RideLocationsView(generics.ListAPIView):
 
     def get_queryset(self):
         ride_id = self.kwargs['ride_id']
-        # Get latest location per rider
         from django.db.models import Max
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Only show locations updated in the last 2 minutes to avoid "ghost" riders
+        cutoff = timezone.now() - timedelta(minutes=2)
+        
         latest_ids = (
             Location.objects
-            .filter(ride_id=ride_id)
+            .filter(ride_id=ride_id, timestamp__gte=cutoff)
             .values('rider')
             .annotate(latest=Max('id'))
             .values_list('latest', flat=True)
         )
-        return Location.objects.filter(id__in=latest_ids)
+        return Location.objects.filter(id__in=latest_ids).select_related('rider', 'ride')
