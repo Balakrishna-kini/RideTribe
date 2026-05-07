@@ -331,9 +331,6 @@ a:hover { color: var(--primary-light); }
   .main-content {
     margin-left: 0;
   }
-  :root {
-    --sidebar-width: 0px;
-  }
 }
 
 @media (max-width: 768px) {

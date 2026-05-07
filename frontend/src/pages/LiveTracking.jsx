@@ -546,14 +546,10 @@ const LiveTracking = () => {
     ? allPositions.reduce((s, p) => s + p.lng, 0) / allPositions.length : 77.59
 
   // Lag detection
-  const allRiders = currentRiders.map(r => {
-    const isCurrentUser = r.id === authService.getCurrentUser()?.id
-    return {
-      ...r,
-      name: isCurrentUser ? (useSimulation ? 'You (Organizer)' : 'You (GPS)') : r.name,
-      lagging: haversine(r.lat, r.lng, centerLat, centerLng) > LAG_THRESHOLD_KM,
-    }
-  })
+  const allRiders = currentRiders.map(r => ({
+    ...r,
+    lagging: haversine(r.lat, r.lng, centerLat, centerLng) > LAG_THRESHOLD_KM,
+  }))
   
   // Real-time Distance Alert Logic
   useEffect(() => {
