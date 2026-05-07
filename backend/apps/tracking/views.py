@@ -32,8 +32,8 @@ class RideLocationsView(generics.ListAPIView):
         from django.utils import timezone
         from datetime import timedelta
         
-        # Only show locations updated in the last 2 minutes to avoid "ghost" riders
-        cutoff = timezone.now() - timedelta(minutes=2)
+        # Only show locations updated in the last 30 SECONDS to avoid "ghost" riders
+        cutoff = timezone.now() - timedelta(seconds=30)
         
         # Get only ride members' locations
         ride_member_ids = RideMember.objects.filter(ride_id=ride_id).values_list('user_id', flat=True)

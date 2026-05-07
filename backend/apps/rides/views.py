@@ -233,8 +233,8 @@ class DashboardSummaryView(APIView):
         from apps.notifications.models import Notification
         
         # 1. Stats
-        # Get rides where user is a member
-        joined_rides = Ride.objects.filter(members__user=user)
+        # Get rides where user is a member - use prefetch_related to optimize
+        joined_rides = Ride.objects.filter(members__user=user).select_related('organizer').prefetch_related('members')
         total_rides = joined_rides.count()
         
         # Sum distance of completed rides
@@ -260,17 +260,17 @@ class DashboardSummaryView(APIView):
             'monthlyRides': monthly_rides
         }
         
-        # 2. Upcoming & Active Rides
+        # 2. Upcoming & Active Rides - optimize with select_related/prefetch_related
         upcoming = Ride.objects.filter(
             members__user=user,
             status='upcoming',
             date__gte=now.date()
-        ).order_by('date', 'time')[:3]
+        ).select_related('organizer').prefetch_related('members').order_by('date', 'time')[:3]
         
         active = Ride.objects.filter(
             members__user=user,
             status='active'
-        ).order_by('-date')
+        ).select_related('organizer').prefetch_related('members').order_by('-date')
         
         upcoming_serializer = RideSerializer(upcoming, many=True)
         active_serializer = RideSerializer(active, many=True)
@@ -280,7 +280,7 @@ class DashboardSummaryView(APIView):
         recent_activity = []
         
         # Get latest 5 notifications
-        notifs = Notification.objects.filter(user=user)[:5]
+        notifs = Notification.objects.filter(user=user).select_related('ride')[:5]
         for n in notifs:
             recent_activity.append({
                 'id': f"n_{n.id}",
