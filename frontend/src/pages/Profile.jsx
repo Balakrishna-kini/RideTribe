@@ -189,11 +189,17 @@ const Profile = () => {
           <div className="stats-row mb-4">
             <div className="stat-card">
               <div className="stat-icon" style={{ background: 'rgba(255,107,0,0.1)', color: '#FF6B00' }}><FiNavigation size={20} /></div>
-              <div><div className="stat-value">24</div><div className="stat-label">Total Rides</div></div>
+              <div>
+                <div className="stat-value">{user.total_rides || user.totalRides || 0}</div>
+                <div className="stat-label">Total Rides</div>
+              </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon" style={{ background: 'rgba(34,197,94,0.1)', color: '#22C55E' }}><FiTrendingUp size={20} /></div>
-              <div><div className="stat-value">18</div><div className="stat-label">Completed Rides</div></div>
+              <div>
+                <div className="stat-value">{user.total_distance || user.totalDistance || 0} km</div>
+                <div className="stat-label">Distance</div>
+              </div>
             </div>
           </div>
 

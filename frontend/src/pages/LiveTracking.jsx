@@ -195,7 +195,7 @@ const LiveTracking = () => {
         indexRef: { current: 0 },
         segmentProgressRef: { current: 0 },
         traveledDistanceRef: { current: 0 },
-        speedOffset: i === 3 ? 0.4 : (0.85 + i * 0.1), // Rider Jordan lags significantly for demo
+        speedOffset: i === 0 ? 1.05 : (i === 3 ? 0.6 : 0.95 - (i * 0.05)), // Leader is fastest, Jordan lags
         isOrganizer: i === 0
       }))
       
@@ -218,121 +218,146 @@ const LiveTracking = () => {
     if (animationRef.current) cancelAnimationFrame(animationRef.current)
   }
 
+  // --- NEW SIMULATION ENGINE ---
+  const simRidersRef = useRef([])
+  const lastSimUpdateRef = useRef(0)
+  const isAnimatingRef = useRef(false)
+
   const animateSimulation = useCallback((timestamp) => {
-    if (!lastTimeRef.current) lastTimeRef.current = timestamp
-    const deltaTime = (timestamp - lastTimeRef.current) / 1000
-    lastTimeRef.current = timestamp
+    if (!isAnimatingRef.current) return
     
-    if (!simulationActive || !routeCoordinates.length || simulatedRiders.length === 0) {
+    if (!lastSimUpdateRef.current) lastSimUpdateRef.current = timestamp
+    const deltaTime = (timestamp - lastSimUpdateRef.current) / 1000
+    lastSimUpdateRef.current = timestamp
+    
+    // Safety check
+    if (!routeCoordinates.length || simRidersRef.current.length === 0) {
+      isAnimatingRef.current = false
       return
     }
     
     let allCompleted = true
+    const speedMultiplier = simulationSpeed; // Use raw multiplier now
     
-    const updatedRiders = simulatedRiders.map(rider => {
-      if (rider.indexRef.current >= routeCoordinates.length - 1) return rider
+    simRidersRef.current = simRidersRef.current.map(rider => {
+      if (rider.index >= routeCoordinates.length - 1) return rider
       
       allCompleted = false
       
-      const turnAngle = calculateTurnAngle(rider.indexRef.current + 1, routeCoordinates)
+      // Calculate dynamic speed based on turn angle
+      const turnAngle = calculateTurnAngle(rider.index + 1, routeCoordinates)
       const isTurn = Math.abs(turnAngle) > 20
-      const baseSpeed = isTurn ? 40 : 80
+      const baseSpeed = isTurn ? 35 : 75
       
-      // Rejoin logic for Rider Jordan (demo)
-      let currentSpeedOffset = rider.speedOffset
+      // Dynamic Catch-up Logic for Demo Riders
+      let currentOffset = rider.speedOffset
       if (rider.id === 'sim-3' && !rider.isOrganizer) {
-        const leader = simulatedRiders.find(r => r.isOrganizer) || simulatedRiders[0]
+        const leader = simRidersRef.current.find(r => r.isOrganizer) || simRidersRef.current[0]
         const distToLeader = haversine(rider.lat, rider.lng, leader.lat, leader.lng)
-        
-        // If > 2.5km away, speed up significantly to catch up
-        if (distToLeader > 2.5) {
-          currentSpeedOffset = 3.0 
-          if (!rider.rejoining) console.log('🏃 Rider Jordan is catching up!')
-          rider.rejoining = true
-        } else if (distToLeader < 0.3) {
-          currentSpeedOffset = 0.4 // Back to slow mode once caught up
-          rider.rejoining = false
-        }
+        if (distToLeader > 2.0) currentOffset = 2.5 // Catch up
+        else if (distToLeader < 0.2) currentOffset = 0.5 // Slow down
       }
 
-      const speed = baseSpeed * currentSpeedOffset
+      const speedKmh = baseSpeed * currentOffset
+      const moveAmountKm = (speedKmh / 3600) * deltaTime * speedMultiplier
       
-      // Speed multiplier scaling: 1x=1, 4x=6, 8x=250 (Extreme Warp)
-      let effectiveSpeedMultiplier = simulationSpeed
-      if (simulationSpeed === 4) effectiveSpeedMultiplier = 6
-      if (simulationSpeed === 8) effectiveSpeedMultiplier = 250
+      const segmentDist = routeDistances[rider.index] || 0.0001
+      let newSegProgress = rider.segmentProgress + (moveAmountKm / segmentDist)
       
-      const moveAmount = (speed / 3600) * deltaTime * effectiveSpeedMultiplier
-      const segmentLength = routeDistances[rider.indexRef.current]
-      let currentSegmentProgress = rider.segmentProgressRef.current + (moveAmount / Math.max(segmentLength, 0.0001))
-      currentSegmentProgress = Math.min(1, currentSegmentProgress)
+      let newIndex = rider.index
+      let finalSegProgress = newSegProgress
+      
+      // If segment complete, move to next
+      if (newSegProgress >= 1) {
+        newIndex = Math.min(routeCoordinates.length - 1, rider.index + 1)
+        finalSegProgress = 0
+      }
       
       const newLat = interpolate(
-        routeCoordinates[rider.indexRef.current][0],
-        routeCoordinates[rider.indexRef.current + 1][0],
-        currentSegmentProgress
+        routeCoordinates[newIndex][0],
+        routeCoordinates[Math.min(routeCoordinates.length - 1, newIndex + 1)][0],
+        finalSegProgress
       )
       const newLng = interpolate(
-        routeCoordinates[rider.indexRef.current][1],
-        routeCoordinates[rider.indexRef.current + 1][1],
-        currentSegmentProgress
+        routeCoordinates[newIndex][1],
+        routeCoordinates[Math.min(routeCoordinates.length - 1, newIndex + 1)][1],
+        finalSegProgress
       )
       
-      const traveledInCurrentSegment = segmentLength * currentSegmentProgress
-      let totalTraveled = 0
-      for (let i = 0; i < rider.indexRef.current; i++) {
-        totalTraveled += routeDistances[i]
-      }
-      totalTraveled += traveledInCurrentSegment
-      
-      const progress = Math.min(100, (totalTraveled / totalDistance) * 100)
+      // Update global progress if this is the organizer
       if (rider.isOrganizer) {
-        setRideProgress(progress)
-        setRideETA(Math.max(0, Math.round((totalDistance - totalTraveled) / speed * 60)))
+        let traveled = 0
+        for (let i = 0; i < newIndex; i++) traveled += routeDistances[i]
+        traveled += (routeDistances[newIndex] || 0) * finalSegProgress
+        
+        const prog = Math.min(100, (traveled / totalDistance) * 100)
+        setRideProgress(prog)
+        setRideETA(Math.max(0, Math.round(((totalDistance - traveled) / (speedKmh || 40)) * 60)))
       }
-      
-      if (currentSegmentProgress >= 1) {
-        rider.indexRef.current = rider.indexRef.current + 1
-        rider.segmentProgressRef.current = 0
-      } else {
-        rider.segmentProgressRef.current = currentSegmentProgress
-      }
-      rider.traveledDistanceRef.current = totalTraveled
       
       return {
         ...rider,
         lat: newLat,
         lng: newLng,
-        speed: Math.round(speed)
+        index: newIndex,
+        segmentProgress: finalSegProgress,
+        speed: Math.round(speedKmh * speedMultiplier)
       }
     })
     
+    // Update React state for rendering (throttle to ~30fps for map markers)
+    setSimulatedRiders([...simRidersRef.current])
+    
     if (allCompleted) {
-      console.log('✅ All riders arrived!')
+      console.log("🏁 All simulation riders arrived!")
       setIsCompleted(true)
       setSimulationActive(false)
-      setRideProgress(100)
-      setRideETA(0)
+      isAnimatingRef.current = false
       return
     }
     
-    setSimulatedRiders(updatedRiders)
     animationRef.current = requestAnimationFrame(animateSimulation)
-  }, [simulationActive, routeCoordinates, routeDistances, totalDistance, simulationSpeed, simulatedRiders])
+  }, [simulationActive, routeCoordinates, routeDistances, totalDistance, simulationSpeed])
 
   useEffect(() => {
-    if (simulationActive && routeCoordinates.length > 0) {
-      console.log('🚀 Starting simulation animation!')
-      lastTimeRef.current = 0
+    if (simulationActive && !isAnimatingRef.current) {
+      console.log("🎬 Starting Animation Loop")
+      isAnimatingRef.current = true
+      lastSimUpdateRef.current = 0
+      simRidersRef.current = simulatedRiders.map(r => ({
+        ...r,
+        index: r.indexRef?.current || 0,
+        segmentProgress: r.segmentProgressRef?.current || 0
+      }))
       animationRef.current = requestAnimationFrame(animateSimulation)
-    } else {
+    } else if (!simulationActive) {
+      isAnimatingRef.current = false
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
     
     return () => {
+      isAnimatingRef.current = false
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
-  }, [simulationActive, routeCoordinates.length, animateSimulation])
+  }, [simulationActive, animateSimulation])
+
+  const handleStartSimulation = () => {
+    if (simulatedRiders.length === 0) initializeSimulation()
+    setSimulationActive(true)
+    setError('')
+  }
+
+  const handlePauseSimulation = () => {
+    setSimulationActive(false)
+  }
+
+  const handleResetSimulation = () => {
+    setSimulationActive(false)
+    setIsCompleted(false)
+    setRideProgress(0)
+    initializeSimulation()
+    console.log("🔄 Simulation Reset State")
+  }
 
   const calculateTurnAngle = (i, coords) => {
     if (i < 2 || i >= coords.length - 1) return 0
@@ -342,24 +367,6 @@ const LiveTracking = () => {
     if (angle > 180) angle -= 360
     if (angle < -180) angle += 360
     return angle
-  }
-
-  const handleStartSimulation = () => {
-    if (simulatedRiders.length === 0) initializeSimulation()
-    setSimulationActive(true)
-    console.log('▶️ Simulation started!')
-  }
-
-  const handlePauseSimulation = () => {
-    setSimulationActive(false)
-    console.log('⏸️ Simulation paused!')
-  }
-
-  const handleResetSimulation = () => {
-    setSimulationActive(false)
-    setIsCompleted(false)
-    initializeSimulation()
-    console.log('🔄 Simulation reset!')
   }
 
   // Push MY GPS location to backend every 5s (real mode)
@@ -533,27 +540,28 @@ const LiveTracking = () => {
 
   // Determine current riders (real or simulated)
   const currentRiders = useSimulation ? simulatedRiders : riders
-  const currentMyLocation = useSimulation 
-    ? (simulatedRiders.length > 0 ? simulatedRiders[0] : null)
+  const activeRider = useSimulation 
+    ? (simulatedRiders.find(r => r.isOrganizer) || simulatedRiders[0])
     : (riders.find(r => r.id === authService.getCurrentUser()?.id) || myLocation)
 
-  // Compute all positions
+  // Compute positions
   const allPositions = currentRiders.map(r => ({ lat: r.lat, lng: r.lng }))
 
-  const centerLat = allPositions.length
-    ? allPositions.reduce((s, p) => s + p.lat, 0) / allPositions.length : 12.97
-  const centerLng = allPositions.length
-    ? allPositions.reduce((s, p) => s + p.lng, 0) / allPositions.length : 77.59
+  // Default to Bangalore if no location, otherwise follow active rider if tracking
+  const centerLat = activeRider?.lat || (allPositions.length
+    ? allPositions.reduce((s, p) => s + p.lat, 0) / allPositions.length : 12.97)
+  const centerLng = activeRider?.lng || (allPositions.length
+    ? allPositions.reduce((s, p) => s + p.lng, 0) / allPositions.length : 77.59)
 
   // Lag detection
   const allRiders = currentRiders.map(r => ({
     ...r,
-    lagging: haversine(r.lat, r.lng, centerLat, centerLng) > LAG_THRESHOLD_KM,
+    lagging: activeRider && haversine(r.lat, r.lng, activeRider.lat, activeRider.lng) > LAG_THRESHOLD_KM,
   }))
   
   // Real-time Distance Alert Logic
   useEffect(() => {
-    if (!isTracking || allRiders.length < 2) return
+    if (!(isTracking || simulationActive) || allRiders.length < 2) return
 
     const leader = allRiders.find(r => r.isOrganizer) || allRiders[0]
     const newDistances = {}
@@ -625,7 +633,7 @@ const LiveTracking = () => {
 
     setRiderDistances(newDistances)
     prevLaggingRef.current = currentLagging
-  }, [allRiders.map(r => `${r.lat},${r.lng}`).join('|'), isTracking])
+  }, [allRiders, isTracking, simulationActive])
 
   const laggingRiders = allRiders.filter(r => (riderDistances[r.id] || 0) > LAG_THRESHOLD_KM)
 
@@ -648,17 +656,19 @@ const LiveTracking = () => {
     position: [rider.lat, rider.lng],
     type: 'rider',
     color: rider.color,
-    label: rider.name
+    label: rider.name,
+    id: rider.id,
+    isOrganizer: rider.isOrganizer
   }))
 
-  // Map bounds to frame all riders
-  const mapBounds = allPositions.length > 0 ? allPositions.map(p => [p.lat, p.lng]) : null
+  // Map bounds to frame all riders - only if NOT following
+  const mapBounds = !(simulationActive || isTracking) && allPositions.length > 1 ? allPositions.map(p => [p.lat, p.lng]) : null
 
   // Get destination for display
   const destLat = selectedRide?.end_lat || selectedRide?.endLat
   const destLng = selectedRide?.end_lng || selectedRide?.endLng
-  const destDistance = currentMyLocation && destLat 
-    ? haversine(currentMyLocation.lat, currentMyLocation.lng, destLat, destLng) 
+  const destDistance = activeRider && destLat 
+    ? haversine(activeRider.lat, activeRider.lng, destLat, destLng) 
     : 0
 
   return (
@@ -696,7 +706,7 @@ const LiveTracking = () => {
               </span>
             )}
             
-            {currentMyLocation && (
+            {activeRider && (
               <div className="d-flex gap-2">
                 <button 
                   className={`btn btn-sm ${fuelStations.length > 0 ? 'btn-success' : 'btn-dark'}`}
@@ -709,9 +719,9 @@ const LiveTracking = () => {
                 <button 
                   className="btn btn-dark btn-sm" 
                   onClick={() => {
-                    const loc = [currentMyLocation.lat, currentMyLocation.lng]
+                    const loc = [activeRider.lat, activeRider.lng]
                     setMyLocation(null)
-                    setTimeout(() => setMyLocation({...currentMyLocation}), 10)
+                    setTimeout(() => setMyLocation({...activeRider}), 10)
                   }}
                   title="Recenter Map"
                 >
@@ -758,13 +768,13 @@ const LiveTracking = () => {
             
             <div className="d-flex gap-2 align-items-center">
               <span className="text-muted small">Speed:</span>
-              {[1, 4, 8].map(x => (
+              {[1, 2, 4].map(x => (
                 <button
                   key={x}
                   className={`btn btn-sm ${simulationSpeed === x ? 'btn-primary' : 'btn-dark'}`}
                   onClick={() => setSimulationSpeed(x)}
                 >
-                  {x === 8 ? 'Too Fast' : `${x}x`}
+                  {x}x
                 </button>
               ))}
             </div>
@@ -832,18 +842,18 @@ const LiveTracking = () => {
       </div>
 
       {/* My GPS Info (real mode only) */}
-      {!useSimulation && currentMyLocation && (
+      {!useSimulation && activeRider && (
         <div className="my-gps-bar mb-3">
           <div className="d-flex align-items-center gap-3 flex-wrap flex-grow-1">
-            <span><FiMapPin size={14} className="text-accent" /> <strong>{currentMyLocation.lat.toFixed(4)}, {currentMyLocation.lng.toFixed(4)}</strong></span>
-            {currentMyLocation.speed > 0 && <span>Speed: <strong>{currentMyLocation.speed} km/h</strong></span>}
+            <span><FiMapPin size={14} className="text-accent" /> <strong>{activeRider.lat.toFixed(4)}, {activeRider.lng.toFixed(4)}</strong></span>
+            {activeRider.speed > 0 && <span>Speed: <strong>{activeRider.speed} km/h</strong></span>}
             {selectedRide && destLat && (
               <span className="badge bg-primary-soft text-accent">
                 🏁 {destDistance < 1 ? `${(destDistance * 1000).toFixed(0)} m` : `${destDistance.toFixed(1)} km`} to destination
               </span>
             )}
           </div>
-          <div className="text-muted small">±{currentMyLocation.accuracy?.toFixed(0)}m accuracy</div>
+          <div className="text-muted small">±{activeRider.accuracy?.toFixed(0)}m accuracy</div>
         </div>
       )}
 
@@ -876,10 +886,31 @@ const LiveTracking = () => {
               </div>
             )}
             <div className="tracking-map">
+              {(isTracking || simulationActive) && (
+                <div className="tracking-stats-overlay">
+                  <div className="d-flex gap-4">
+                    <div className="text-center">
+                      <div className="stat-value">{activeRider?.speed || 0}</div>
+                      <div className="text-muted smaller">KM/H</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="stat-value">{destDistance < 1 ? (destDistance * 1000).toFixed(0) : destDistance.toFixed(1)}</div>
+                      <div className="text-muted smaller">{destDistance < 1 ? 'M' : 'KM'} LEFT</div>
+                    </div>
+                    {laggingRiders.length > 0 && (
+                      <div className="text-center">
+                        <div className="stat-value text-danger">{laggingRiders.length}</div>
+                        <div className="text-muted smaller">LAGGING</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <ModernMap
                 center={[centerLat, centerLng]}
                 zoom={14}
                 bounds={mapBounds}
+                follow={isTracking || simulationActive}
                 markers={[
                   ...mapMarkers,
                   ...fuelStations.map(s => ({
@@ -927,11 +958,11 @@ const LiveTracking = () => {
                     <div className="rider-info">
                       <div className="rider-name d-flex align-items-center gap-1">
                         {rider.name}
-                        {rider.isOrganizer && <span className="badge bg-dark-soft smaller">Leader</span>}
+                        {rider.isOrganizer && <span className="badge bg-primary text-white smaller">LEADER</span>}
                       </div>
                       <div className="rider-meta d-flex gap-2 align-items-center">
-                        <span className="rider-speed small">
-                          {rider.speed ? `${Number(rider.speed).toFixed(0)} km/h` : '—'}
+                        <span className="rider-speed small fw-bold">
+                          {rider.speed ? `${Number(rider.speed).toFixed(0)} km/h` : '0 km/h'}
                         </span>
                         {!rider.isOrganizer && (
                           <span className={`rider-distance smaller ${riderDistances[rider.id] > LAG_THRESHOLD_KM ? 'text-danger fw-bold' : 'text-muted'}`}>
@@ -1090,6 +1121,15 @@ const LiveTracking = () => {
         .alert-success { background: rgba(21, 128, 61, 0.95); border-color: #22c55e; }
         .bg-dark-soft { background: rgba(255,255,255,0.1); color: #ccc; }
         .rider-item.selected { border-color: var(--primary); background: rgba(255,107,0,0.05); }
+        .tracking-stats-overlay {
+          position: absolute; top: 15px; left: 15px; z-index: 1000;
+          background: rgba(var(--bg-dark-rgb), 0.85); backdrop-filter: blur(8px);
+          border: 1px solid var(--border-color); border-radius: var(--radius-md);
+          padding: 0.75rem 1.25rem; color: var(--text-primary);
+          box-shadow: var(--shadow-lg); animation: fadeIn 0.4s ease-out;
+        }
+        .stat-value { font-size: 1.2rem; font-weight: 800; color: var(--primary); line-height: 1.1; }
+        .smaller { font-size: 0.65rem; font-weight: 700; letter-spacing: 1px; }
       `}</style>
     </DashboardLayout>
   )

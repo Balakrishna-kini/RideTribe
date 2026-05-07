@@ -39,12 +39,23 @@ const START_ICON = createCustomIcon('#22C55E', 'start');
 const END_ICON = createCustomIcon('#EF4444', 'end');
 const RIDER_ICON = (color) => createCustomIcon(color || '#FF6B00', 'start');
 
+// Smooth Follow Component for real-time tracking
+const SmoothFollow = ({ center, follow }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (follow && center) {
+      map.setView(center, map.getZoom(), { animate: false });
+    }
+  }, [center, follow, map]);
+  return null;
+};
+
 // Map Controller for fitBounds and animations
-const MapController = ({ bounds, center, zoom }) => {
+const MapController = ({ bounds, center, zoom, follow }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || follow) return; // Don't fit bounds if following
 
     try {
       if (bounds && Array.isArray(bounds) && bounds.length > 0) {
@@ -60,7 +71,7 @@ const MapController = ({ bounds, center, zoom }) => {
     } catch (e) {
       console.warn("Map animation failed:", e);
     }
-  }, [bounds, center, zoom, map]);
+  }, [bounds, center, zoom, map, follow]);
 
   return null;
 };
@@ -72,7 +83,8 @@ const ModernMap = React.forwardRef(({
   markers = [], 
   polyline,
   height = "100%",
-  interactive = true
+  interactive = true,
+  follow = false
 }, ref) => {
   return (
     <div style={{ height, width: '100%', position: 'relative', overflow: 'hidden', borderRadius: 'inherit' }}>
@@ -95,7 +107,8 @@ const ModernMap = React.forwardRef(({
         
         {interactive && <ZoomControl position="bottomright" />}
         
-        <MapController bounds={bounds} center={center} zoom={zoom} />
+        <MapController bounds={bounds} center={center} zoom={zoom} follow={follow} />
+        <SmoothFollow center={center} follow={follow} />
 
         {markers.map((m, i) => (
           <Marker 

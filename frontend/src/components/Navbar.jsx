@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { FiBell, FiSearch, FiUser, FiLogOut, FiSettings, FiMenu, FiSun, FiMoon } from 'react-icons/fi'
 import Logo from './Logo'
+import authService from '../services/authService'
 
 const Navbar = ({ onToggleSidebar }) => {
   const navigate = useNavigate()
@@ -69,13 +70,16 @@ const Navbar = ({ onToggleSidebar }) => {
             </Link>
             <div className="dropdown">
               <button
-                className="profile-btn dropdown-toggle"
+                className="profile-btn dropdown-toggle d-flex align-items-center gap-2"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
               >
                 <div className="profile-avatar">
                   <FiUser size={16} />
                 </div>
+                <span className="d-none d-md-inline-block text-secondary small fw-bold">
+                  Hey, {authService.getCurrentUser()?.first_name || authService.getCurrentUser()?.username || 'Rider'}
+                </span>
               </button>
               <ul className="dropdown-menu dropdown-menu-end">
                 <li><Link className="dropdown-item" to="/profile"><FiUser size={14} /> Profile</Link></li>
@@ -144,6 +148,10 @@ const Navbar = ({ onToggleSidebar }) => {
           color: var(--primary); transition: all var(--transition-fast);
         }
         .profile-avatar:hover { background: rgba(255,107,0,0.2); }
+        .profile-avatar::after {
+          content: '${authService.getCurrentUser()?.first_name || authService.getCurrentUser()?.username || 'R'}';
+          font-size: 0; /* Hidden but keeps context */
+        }
         
         @media (max-width: 768px) {
           .navbar-center { display: none; }
