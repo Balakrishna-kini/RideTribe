@@ -41,6 +41,7 @@ RiderTribe is a comprehensive ecosystem designed for motorcycle enthusiasts to c
 * **React Leaflet** for high-performance map rendering.
 * **Bootstrap 5** for modern, responsive layouts.
 * **React Icons** for clean, consistent iconography.
+* **OpenRouteAPI** for maps
 
 ### Backend
 
